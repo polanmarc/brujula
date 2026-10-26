@@ -46,7 +46,7 @@ function GmailPage() {
         <PageHeader title="Gmail" />
         <Panel>
           <Empty icon={Mail} title="Gmail no está conectado">
-            <p>Para ver tu correo hay que vincular tu cuenta de Google con permiso de solo lectura. Pídelo en el chat de Lovable («conecta Gmail») y aparecerá una tarjeta para autorizarla.</p>
+            <p>Para ver tu correo, añade tus credenciales de Google (<code>GOOGLE_ACCESS_TOKEN</code> o credenciales OAuth) en tu archivo <code>.env</code>.</p>
             {status.data && "error" in status.data && status.data.error && <p className="mt-2 text-destructive">Detalle: {status.data.error}</p>}
           </Empty>
         </Panel>

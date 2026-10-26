@@ -59,7 +59,7 @@ export const getMoodleStatus = createServerFn({ method: "GET" })
 
 export const saveMoodleSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z.object({
       icsUrl: z.string().trim().url().startsWith("https://").max(2000).nullable().optional(),
       baseUrl: z.string().trim().url().max(500).nullable().optional(),
@@ -83,7 +83,7 @@ export const syncMoodle = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: s } = await supabaseAdmin
       .from("user_settings").select("moodle_ics_url").eq("user_id", context.userId).maybeSingle();
-    if (!s?.moodle_ics_url) throw new Error("No hay URL de calendario de Moodle configurada");
+    if (!s?.moodle_ics_url) return { imported: 0, newSubjects: 0, skipped: true };
     const res = await fetch(s.moodle_ics_url, { headers: { Accept: "text/calendar" } });
     if (!res.ok) throw new Error(`Moodle respondió ${res.status}. Revisa que la URL de exportación siga siendo válida.`);
     const text = await res.text();
@@ -96,7 +96,7 @@ export const syncMoodle = createServerFn({ method: "POST" })
 
 export const importIcsFile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ text: z.string().min(10).max(5_000_000) }).parse(input))
+  .validator((input: unknown) => z.object({ text: z.string().min(10).max(5_000_000) }).parse(input))
   .handler(async ({ data, context }) => {
     await assertOwner(context);
     return storeEvents(context, parseIcs(data.text), "ics");

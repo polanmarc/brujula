@@ -112,9 +112,12 @@ function GmailSettings() {
   return (
     <Panel title="Gmail" action={s.data && <StatusPill ok={s.data.connected} label={s.data.connected ? "Conectado" : "No conectado"} />}>
       {s.isLoading ? <Loading /> : s.error ? <ErrorBox error={s.error} /> : s.data?.connected ? (
-        <p className="text-sm">Conectado como <strong>{s.data.email}</strong> con acceso de solo lectura. Para desconectar o cambiar de cuenta, pídelo en el chat de Lovable.</p>
+        <p className="text-sm">Conectado como <strong>{s.data.email}</strong> con acceso de solo lectura.</p>
       ) : (
-        <p className="text-sm text-muted-foreground">Aún no hay ninguna cuenta de Google vinculada. Pide en el chat de Lovable «conecta Gmail» y autoriza tu cuenta con permiso de solo lectura.</p>
+        <div className="space-y-2 text-sm text-muted-foreground">
+          <p>Aún no hay ninguna cuenta de Google vinculada.</p>
+          <p className="text-xs">Para conectar Gmail de forma directa y autónoma, añade tu clave o token de Google (<code>GOOGLE_ACCESS_TOKEN</code> o credenciales OAuth) en tu archivo <code>.env</code>.</p>
+        </div>
       )}
     </Panel>
   );

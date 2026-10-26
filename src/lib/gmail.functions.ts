@@ -2,8 +2,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const GATEWAY = "https://connector-gateway.lovable.dev/google_mail/gmail/v1";
-const BATCH = "https://connector-gateway.lovable.dev/google_mail/batch/gmail/v1";
+// Official Google Gmail REST API endpoints
+const GATEWAY = "https://gmail.googleapis.com/gmail/v1";
+const BATCH = "https://www.googleapis.com/batch/gmail/v1";
 
 export type MailItem = {
   id: string;
@@ -15,11 +16,44 @@ export type MailItem = {
   unread: boolean;
 };
 
-function creds() {
-  const lovable = process.env["LOVABLE_API_KEY"];
-  const gmail = process.env["GOOGLE_MAIL_API_KEY"];
-  if (!lovable || !gmail) return null;
-  return { Authorization: `Bearer ${lovable}`, "X-Connection-Api-Key": gmail };
+async function getAccessToken(): Promise<string | null> {
+  // Direct Google access token
+  const token = process.env["GOOGLE_ACCESS_TOKEN"] || process.env["GOOGLE_MAIL_API_KEY"];
+  if (token) return token;
+
+  // Refresh token flow if client credentials and refresh token are provided
+  const clientId = process.env["GOOGLE_CLIENT_ID"];
+  const clientSecret = process.env["GOOGLE_CLIENT_SECRET"];
+  const refreshToken = process.env["GOOGLE_REFRESH_TOKEN"];
+
+  if (clientId && clientSecret && refreshToken) {
+    try {
+      const res = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          refresh_token: refreshToken,
+          grant_type: "refresh_token",
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.access_token as string;
+      }
+    } catch {
+      // Failed to refresh token
+    }
+  }
+
+  return null;
+}
+
+async function creds(): Promise<Record<string, string> | null> {
+  const token = await getAccessToken();
+  if (!token) return null;
+  return { Authorization: `Bearer ${token}` };
 }
 
 async function owner(supabase: any) {
@@ -28,7 +62,7 @@ async function owner(supabase: any) {
 }
 
 async function gm(path: string) {
-  const h = creds();
+  const h = await creds();
   if (!h) throw new Error("GMAIL_NOT_CONNECTED");
   const res = await fetch(`${GATEWAY}${path}`, { headers: h });
   if (!res.ok) throw new Error(`Gmail [${res.status}]: ${await res.text()}`);
@@ -40,7 +74,8 @@ function header(headers: { name: string; value: string }[] = [], name: string) {
 }
 
 async function batchMetadata(ids: string[]): Promise<any[]> {
-  const h = creds()!;
+  const h = await creds();
+  if (!h) return [];
   const boundary = "batch_dash_" + Math.random().toString(36).slice(2);
   const body = ids.map((id, i) =>
     `--${boundary}\r\nContent-Type: application/http\r\nContent-ID: <item${i}>\r\n\r\n` +
@@ -75,7 +110,8 @@ export const gmailStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await owner(context.supabase);
-    if (!creds()) return { connected: false as const, email: null, unread: 0 };
+    const token = await getAccessToken();
+    if (!token) return { connected: false as const, email: null, unread: 0 };
     try {
       const [profile, inbox] = await Promise.all([gm("/users/me/profile"), gm("/users/me/labels/INBOX")]);
       return { connected: true as const, email: profile.emailAddress as string, unread: (inbox.messagesUnread ?? 0) as number };
@@ -86,7 +122,7 @@ export const gmailStatus = createServerFn({ method: "GET" })
 
 export const listMail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z.object({ q: z.string().max(300).default(""), unreadOnly: z.boolean().default(false), pageToken: z.string().max(200).optional() }).parse(input),
   )
   .handler(async ({ data, context }) => {
@@ -125,7 +161,7 @@ function findBody(part: any, mime: string): string | null {
 
 export const getMail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ id: z.string().regex(/^[a-zA-Z0-9]+$/) }).parse(input))
+  .validator((input: unknown) => z.object({ id: z.string().regex(/^[a-zA-Z0-9]+$/) }).parse(input))
   .handler(async ({ data, context }) => {
     await owner(context.supabase);
     const m = await gm(`/users/me/messages/${data.id}?format=full`);

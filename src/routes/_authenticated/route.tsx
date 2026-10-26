@@ -1,9 +1,13 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, Outlet, redirect, useRouterState } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { BookOpen, CalendarDays, CheckSquare, Home, LayoutDashboard, LogOut, Mail, Menu, Moon, Settings, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { qk } from "@/lib/data";
+import { syncMoodle } from "@/lib/moodle.functions";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -81,8 +85,35 @@ function Nav({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
+function useMoodleAutoSync() {
+  const qc = useQueryClient();
+  const syncFn = useServerFn(syncMoodle);
+
+  useEffect(() => {
+    let cancelled = false;
+    syncFn()
+      .then((res) => {
+        if (cancelled) return;
+        if (res && !("skipped" in res)) {
+          qc.invalidateQueries({ queryKey: qk.events });
+          qc.invalidateQueries({ queryKey: qk.subjects });
+          qc.invalidateQueries({ queryKey: ["moodle", "status"] });
+        }
+      })
+      .catch((err) => {
+        console.debug("[Moodle AutoSync]", err?.message || err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [syncFn, qc]);
+}
+
 function AppLayout() {
   const [open, setOpen] = useState(false);
+  useMoodleAutoSync();
+
   return (
     <div className="flex min-h-screen bg-background">
       <aside className="sticky top-0 hidden h-screen w-56 shrink-0 border-r border-sidebar-border bg-sidebar md:block">

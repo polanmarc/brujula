@@ -1,3 +1,12 @@
+// Load .env automatically in local Node/runtime environments
+if (typeof process !== "undefined" && typeof (process as any).loadEnvFile === "function") {
+  try {
+    (process as any).loadEnvFile();
+  } catch {
+    // .env might already be loaded or not present in container
+  }
+}
+
 import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";

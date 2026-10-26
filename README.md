@@ -1,26 +1,42 @@
-# Campus Brujula Personal
+# Campus Brújula Personal
 
-Implement exactly the screenshot and nothing else
+Panel privado y autónomo para gestión de vida universitaria y personal: tareas, entregas de Moodle (TecnoCampus), calendario y correo.
 
-This project was built with [Lovable](https://lovable.dev).
+## Características
 
-**Live app**: https://campus-brujula-personal.lovable.app
+- **Universidad & Moodle**: Sincronización automática de entregas y exámenes vía exportación de calendario iCal / archivo `.ics`.
+- **Calendario unificado**: Tareas y eventos integrados sin duplicados.
+- **Gmail**: Bandeja de entrada de solo lectura para consulta rápida.
+- **Notas y enlaces rápidos**: Acceso directo a portales académicos y apuntes.
+- **Autónomo e independiente**: Funciona con tu propia base de datos de Supabase y sin ataduras a plataformas propietarias.
 
-## Build with Lovable
+## Configuración y Variables de Entorno
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/5ce70118-ad92-4f50-9c4c-6d6572e6d161).
+Crea o edita tu archivo `.env` en la raíz del proyecto:
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+```env
+# Supabase (Tu propio proyecto)
+SUPABASE_URL="https://tu-proyecto.supabase.co"
+SUPABASE_PUBLISHABLE_KEY="tu_clave_publica_de_supabase"
+SUPABASE_SERVICE_ROLE_KEY="tu_clave_service_role_secreta"
 
-## Development
+VITE_SUPABASE_URL="https://tu-proyecto.supabase.co"
+VITE_SUPABASE_PUBLISHABLE_KEY="tu_clave_publica_de_supabase"
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+# Gmail (Opcional)
+GOOGLE_ACCESS_TOKEN="tu_token_de_acceso_opcional"
+```
 
+## Desarrollo Local
+
+1. Instala las dependencias:
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+npm install
+```
+
+2. Inicia el servidor de desarrollo:
+```sh
 npm run dev
 ```
+
+3. Abre [http://localhost:3000](http://localhost:3000) (o el puerto indicado en la terminal).
