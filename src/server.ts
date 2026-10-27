@@ -11,6 +11,7 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { authenticateCronRequest } from "./integrations/supabase/cron-auth";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -53,9 +54,37 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+// Scheduled Moodle sync, triggered by an external cron with a shared secret
+// (CRON_SECRET). Keeps the calendar fresh without the owner opening the app.
+async function handleCronSync(request: Request): Promise<Response> {
+  if (request.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
+  const unauthorized = await authenticateCronRequest(request);
+  if (unauthorized) return unauthorized;
+  try {
+    const { listSyncableUserIds, runMoodleSync } = await import("./lib/moodle-sync");
+    const userIds = await listSyncableUserIds();
+    const results = await Promise.all(
+      userIds.map(async (userId) => {
+        try {
+          return { userId, ...(await runMoodleSync(userId, { force: true })) };
+        } catch (error) {
+          return { userId, error: (error as Error).message };
+        }
+      }),
+    );
+    return Response.json({ ok: true, synced: userIds.length, results });
+  } catch (error) {
+    console.error(error);
+    return Response.json({ ok: false, error: (error as Error).message }, { status: 500 });
+  }
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      if (new URL(request.url).pathname === "/api/cron/sync") {
+        return await handleCronSync(request);
+      }
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);

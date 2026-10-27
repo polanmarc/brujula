@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
 
 // Official Google Gmail REST API endpoints
 const GATEWAY = "https://gmail.googleapis.com/gmail/v1";
@@ -56,7 +58,7 @@ async function creds(): Promise<Record<string, string> | null> {
   return { Authorization: `Bearer ${token}` };
 }
 
-async function owner(supabase: any) {
+async function owner(supabase: SupabaseClient<Database>) {
   const { data } = await supabase.rpc("is_app_owner");
   if (!data) throw new Error("Acceso restringido al propietario del panel");
 }
@@ -77,10 +79,14 @@ async function batchMetadata(ids: string[]): Promise<any[]> {
   const h = await creds();
   if (!h) return [];
   const boundary = "batch_dash_" + Math.random().toString(36).slice(2);
-  const body = ids.map((id, i) =>
-    `--${boundary}\r\nContent-Type: application/http\r\nContent-ID: <item${i}>\r\n\r\n` +
-    `GET /gmail/v1/users/me/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date\r\n\r\n`,
-  ).join("") + `--${boundary}--`;
+  const body =
+    ids
+      .map(
+        (id, i) =>
+          `--${boundary}\r\nContent-Type: application/http\r\nContent-ID: <item${i}>\r\n\r\n` +
+          `GET /gmail/v1/users/me/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date\r\n\r\n`,
+      )
+      .join("") + `--${boundary}--`;
   const res = await fetch(BATCH, {
     method: "POST",
     headers: { ...h, "Content-Type": `multipart/mixed; boundary=${boundary}` },
@@ -99,8 +105,12 @@ async function batchMetadata(ids: string[]): Promise<any[]> {
     const jsonStart = part.indexOf("{", part.indexOf(statusMatch[0]));
     const jsonEnd = part.lastIndexOf("}");
     const code = statusMatch[1]!;
-    if (+code >= 300) { errors.push(code); continue; }
-    if (jsonStart >= 0 && jsonEnd > jsonStart) out.push(JSON.parse(part.slice(jsonStart, jsonEnd + 1)));
+    if (+code >= 300) {
+      errors.push(code);
+      continue;
+    }
+    if (jsonStart >= 0 && jsonEnd > jsonStart)
+      out.push(JSON.parse(part.slice(jsonStart, jsonEnd + 1)));
   }
   if (!out.length && errors.length) throw new Error(`Gmail devolvió errores: ${errors.join(", ")}`);
   return out;
@@ -113,8 +123,15 @@ export const gmailStatus = createServerFn({ method: "GET" })
     const token = await getAccessToken();
     if (!token) return { connected: false as const, email: null, unread: 0 };
     try {
-      const [profile, inbox] = await Promise.all([gm("/users/me/profile"), gm("/users/me/labels/INBOX")]);
-      return { connected: true as const, email: profile.emailAddress as string, unread: (inbox.messagesUnread ?? 0) as number };
+      const [profile, inbox] = await Promise.all([
+        gm("/users/me/profile"),
+        gm("/users/me/labels/INBOX"),
+      ]);
+      return {
+        connected: true as const,
+        email: profile.emailAddress as string,
+        unread: (inbox.messagesUnread ?? 0) as number,
+      };
     } catch (e) {
       return { connected: false as const, email: null, unread: 0, error: (e as Error).message };
     }
@@ -123,27 +140,41 @@ export const gmailStatus = createServerFn({ method: "GET" })
 export const listMail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) =>
-    z.object({ q: z.string().max(300).default(""), unreadOnly: z.boolean().default(false), pageToken: z.string().max(200).optional() }).parse(input),
+    z
+      .object({
+        q: z.string().max(300).default(""),
+        unreadOnly: z.boolean().default(false),
+        pageToken: z.string().max(200).optional(),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
     await owner(context.supabase);
     const q = [data.q, data.unreadOnly ? "is:unread" : ""].filter(Boolean).join(" ");
     const params = new URLSearchParams({ maxResults: "25", labelIds: "INBOX" });
-    if (q) { params.delete("labelIds"); params.set("q", q); }
+    if (q) {
+      params.delete("labelIds");
+      params.set("q", q);
+    }
     if (data.pageToken) params.set("pageToken", data.pageToken);
     const list = await gm(`/users/me/messages?${params}`);
     const ids: string[] = (list.messages ?? []).map((m: { id: string }) => m.id);
     const metas = ids.length ? await batchMetadata(ids) : [];
     const byId = new Map(metas.map((m) => [m.id, m]));
-    const items: MailItem[] = ids.map((id) => byId.get(id)).filter(Boolean).map((m: any) => ({
-      id: m.id,
-      threadId: m.threadId,
-      from: header(m.payload?.headers, "From"),
-      subject: header(m.payload?.headers, "Subject") || "(sin asunto)",
-      date: m.internalDate ? new Date(+m.internalDate).toISOString() : header(m.payload?.headers, "Date"),
-      snippet: m.snippet ?? "",
-      unread: (m.labelIds ?? []).includes("UNREAD"),
-    }));
+    const items: MailItem[] = ids
+      .map((id) => byId.get(id))
+      .filter(Boolean)
+      .map((m: any) => ({
+        id: m.id,
+        threadId: m.threadId,
+        from: header(m.payload?.headers, "From"),
+        subject: header(m.payload?.headers, "Subject") || "(sin asunto)",
+        date: m.internalDate
+          ? new Date(+m.internalDate).toISOString()
+          : header(m.payload?.headers, "Date"),
+        snippet: m.snippet ?? "",
+        unread: (m.labelIds ?? []).includes("UNREAD"),
+      }));
     return { items, nextPageToken: (list.nextPageToken as string | undefined) ?? null };
   });
 
@@ -155,7 +186,10 @@ function decode(b64: string) {
 function findBody(part: any, mime: string): string | null {
   if (!part) return null;
   if (part.mimeType === mime && part.body?.data) return decode(part.body.data);
-  for (const p of part.parts ?? []) { const r = findBody(p, mime); if (r) return r; }
+  for (const p of part.parts ?? []) {
+    const r = findBody(p, mime);
+    if (r) return r;
+  }
   return null;
 }
 
@@ -174,6 +208,15 @@ export const getMail = createServerFn({ method: "POST" })
       to: header(m.payload?.headers, "To"),
       subject: header(m.payload?.headers, "Subject") || "(sin asunto)",
       date: new Date(+m.internalDate).toISOString(),
-      body: text ?? (html ? html.replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s{2,}/g, " ").trim() : m.snippet ?? ""),
+      body:
+        text ??
+        (html
+          ? html
+              .replace(/<style[\s\S]*?<\/style>/gi, "")
+              .replace(/<[^>]+>/g, " ")
+              .replace(/&nbsp;/g, " ")
+              .replace(/\s{2,}/g, " ")
+              .trim()
+          : (m.snippet ?? "")),
     };
   });
