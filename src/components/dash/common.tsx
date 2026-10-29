@@ -1,9 +1,9 @@
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { AlertCircle, ExternalLink, GraduationCap, Inbox, Loader2 } from "lucide-react";
+import { AlertCircle, CalendarDays, CheckSquare, Clock, ExternalLink, FileText, Inbox, Loader2, PenLine } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { dueLabel, type AgendaItem, type Subject } from "@/lib/data";
+import { CATEGORY_LABEL, dueLabel, type AgendaCategory, type AgendaItem, type Subject } from "@/lib/data";
 
 export function PageHeader({ title, description, actions }: { title: string; description?: string | undefined; actions?: ReactNode }) {
   return (
@@ -48,22 +48,46 @@ export function DueBadge({ date, done }: { date: Date; done?: boolean }) {
   );
 }
 
-export function AgendaRow({ item, onClick }: { item: AgendaItem; onClick?: () => void }) {
+const CATEGORY_STYLE: Record<AgendaCategory, { icon: typeof Inbox; cls: string }> = {
+  task: { icon: CheckSquare, cls: "text-muted-foreground" },
+  deadline: { icon: FileText, cls: "text-primary" },
+  exam: { icon: PenLine, cls: "text-destructive" },
+  class: { icon: Clock, cls: "text-success" },
+  event: { icon: CalendarDays, cls: "text-muted-foreground" },
+};
+
+export function CategoryIcon({ category, className }: { category: AgendaCategory; className?: string }) {
+  const { icon: Icon, cls } = CATEGORY_STYLE[category];
+  return <Icon className={cn("h-3.5 w-3.5 shrink-0", cls, className)} aria-label={CATEGORY_LABEL[category]} />;
+}
+
+export function CategoryBadge({ category }: { category: AgendaCategory }) {
+  if (category === "task") return null;
+  return (
+    <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+      category === "exam" ? "bg-destructive/10 text-destructive" : category === "deadline" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
+      {CATEGORY_LABEL[category]}
+    </span>
+  );
+}
+
+export function AgendaRow({ item, onClick, showBadge = true }: { item: AgendaItem; onClick?: () => void; showBadge?: boolean }) {
   return (
     <div className="group flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted/60">
       <SubjectDot subject={item.subject} />
       <button onClick={onClick} className="min-w-0 flex-1 text-left">
         <div className={cn("flex items-center gap-1.5 truncate text-sm", item.done && "text-muted-foreground line-through")}>
-          {item.kind === "event" && <GraduationCap className="h-3.5 w-3.5 shrink-0 text-primary" />}
+          <CategoryIcon category={item.category} />
           <span className="truncate">{item.title}</span>
         </div>
         <div className="truncate text-xs text-muted-foreground">
-          {item.subject?.name ?? item.event?.course ?? (item.kind === "task" ? "Personal" : "Moodle")} · {format(item.date, item.allDay ? "EEE d MMM" : "EEE d MMM, HH:mm", { locale: es })}
+          {item.subject?.name ?? item.event?.course ?? (item.kind === "task" ? "Personal" : "Calendario")} · {format(item.date, item.allDay ? "EEE d MMM" : "EEE d MMM, HH:mm", { locale: es })}
         </div>
       </button>
-      <DueBadge date={item.date} done={item.done} />
+      {showBadge && <CategoryBadge category={item.category} />}
+      {item.category !== "class" && <DueBadge date={item.date} done={item.done} />}
       {item.url && (
-        <a href={item.url} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground" aria-label="Abrir en Moodle">
+        <a href={item.url} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground" aria-label="Abrir enlace">
           <ExternalLink className="h-3.5 w-3.5" />
         </a>
       )}

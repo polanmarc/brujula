@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { CheckSquare, Plus, Repeat, Search } from "lucide-react";
+import { CheckSquare, ChevronLeft, ChevronRight, ListTree, Plus, Repeat, Search, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  CategoryBadge,
   DueBadge,
   Empty,
   ErrorBox,
@@ -26,13 +27,13 @@ import {
 } from "@/components/dash/common";
 import { CalendarView } from "@/components/dash/CalendarView";
 import { TaskDialog } from "@/components/dash/TaskDialog";
-import { buildAgenda, useSubjects, useTaskMutations, useTasks, type Task } from "@/lib/data";
+import { buildAgenda, useSubjects, useTaskMutations, useTasks, type AgendaCategory, type Subject, type Task } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/tareas")({
   head: () => ({
     meta: [
-      { title: "Tareas · Panel personal" },
+      { title: "Tareas · Brújula" },
       { name: "description", content: "Gestor de tareas." },
     ],
   }),
@@ -50,7 +51,7 @@ const PRIO: Record<string, { label: string; cls: string }> = {
 function TasksPage() {
   const tasks = useTasks();
   const { data: subjects = [] } = useSubjects();
-  const { toggle } = useTaskMutations();
+  const { toggle, setStatus: moveTask } = useTaskMutations();
   const navigate = Route.useNavigate();
   const { new: openNew } = Route.useSearch();
   const [q, setQ] = useState("");
@@ -68,7 +69,20 @@ function TasksPage() {
     }
   }, [openNew, navigate]);
 
-  const all = tasks.data ?? [];
+  const everything = useMemo(() => tasks.data ?? [], [tasks.data]);
+  // subtasks live inside their parent task
+  const all = useMemo(() => everything.filter((t) => !t.parent_id), [everything]);
+  const subCount = useMemo(() => {
+    const m = new Map<string, { done: number; total: number }>();
+    for (const t of everything) {
+      if (!t.parent_id) continue;
+      const c = m.get(t.parent_id) ?? { done: 0, total: 0 };
+      c.total++;
+      if (t.status === "done") c.done++;
+      m.set(t.parent_id, c);
+    }
+    return m;
+  }, [everything]);
   const filtered = useMemo(
     () =>
       all.filter((t) => {
@@ -104,6 +118,7 @@ function TasksPage() {
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <TabsList>
             <TabsTrigger value="list">Lista</TabsTrigger>
+            <TabsTrigger value="board">Tablero</TabsTrigger>
             <TabsTrigger value="cal">Calendario</TabsTrigger>
           </TabsList>
           <div className="relative ml-auto w-full sm:w-56">
@@ -191,6 +206,14 @@ function TasksPage() {
                           {t.recurrence !== "none" && (
                             <Repeat className="h-3 w-3 text-muted-foreground" />
                           )}
+                          {t.kind !== "task" && <CategoryBadge category={KIND_CATEGORY[t.kind] ?? "task"} />}
+                          {t.group_id && <Users className="h-3 w-3 text-muted-foreground" aria-label="Compartida" />}
+                          {subCount.get(t.id) && (
+                            <span className="inline-flex items-center gap-0.5 text-[11px] text-muted-foreground">
+                              <ListTree className="h-3 w-3" />
+                              {subCount.get(t.id)!.done}/{subCount.get(t.id)!.total}
+                            </span>
+                          )}
                           {t.status === "in_progress" && (
                             <span className="rounded bg-accent px-1.5 text-[10px] text-accent-foreground">
                               En curso
@@ -201,6 +224,7 @@ function TasksPage() {
                           <SubjectDot subject={subj(t.subject_id)} />
                           {subj(t.subject_id)?.name ?? "Personal"}
                           <span className={PRIO[t.priority]?.cls}>· {PRIO[t.priority]?.label}</span>
+                          {!!t.estimate_minutes && <span>· {t.estimate_minutes} min</span>}
                           {date && (
                             <span>
                               ·{" "}
@@ -216,6 +240,15 @@ function TasksPage() {
               </ul>
             )}
           </Panel>
+        </TabsContent>
+        <TabsContent value="board">
+          <Board
+            tasks={filtered.filter((t) => status !== "open" || t.status !== "done")}
+            allForDone={status === "open" ? all.filter((t) => t.status === "done").slice(0, 20) : []}
+            subj={subj}
+            onOpen={setEdit}
+            onMove={(t, next) => moveTask.mutate({ id: t.id, status: next })}
+          />
         </TabsContent>
         <TabsContent value="cal">
           <Panel>
@@ -237,6 +270,80 @@ function TasksPage() {
         }}
         initial={edit}
       />
+    </div>
+  );
+}
+
+const KIND_CATEGORY: Record<string, AgendaCategory> = { task: "task", deliverable: "deadline", exam: "exam" };
+
+const COLUMNS = [
+  { id: "todo", label: "Pendiente" },
+  { id: "in_progress", label: "En curso" },
+  { id: "done", label: "Hecha" },
+] as const;
+
+function Board({
+  tasks,
+  allForDone,
+  subj,
+  onOpen,
+  onMove,
+}: {
+  tasks: Task[];
+  allForDone: Task[];
+  subj: (id: string | null) => Subject | null;
+  onOpen: (t: Task) => void;
+  onMove: (t: Task, status: string) => void;
+}) {
+  const [over, setOver] = useState<string | null>(null);
+  const list = [...tasks, ...allForDone];
+  return (
+    <div className="grid gap-3 md:grid-cols-3">
+      {COLUMNS.map((col, ci) => {
+        const items = list.filter((t) => (t.status === col.id) || (col.id === "todo" && !COLUMNS.some((c) => c.id === t.status)));
+        return (
+          <div
+            key={col.id}
+            onDragOver={(e) => { e.preventDefault(); setOver(col.id); }}
+            onDragLeave={() => setOver(null)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setOver(null);
+              const t = list.find((x) => x.id === e.dataTransfer.getData("text/plain"));
+              if (t && t.status !== col.id) onMove(t, col.id);
+            }}
+            className={cn("min-h-40 rounded-lg border bg-muted/30 p-2 transition-colors", over === col.id && "border-primary bg-primary/5")}
+          >
+            <p className="mb-2 flex items-center justify-between px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {col.label} <span>{items.length}</span>
+            </p>
+            <div className="space-y-2">
+              {items.map((t) => (
+                <div
+                  key={t.id}
+                  draggable
+                  onDragStart={(e) => e.dataTransfer.setData("text/plain", t.id)}
+                  className="cursor-grab rounded-md border bg-card p-2.5 text-sm shadow-sm active:cursor-grabbing"
+                >
+                  <button className="w-full text-left" onClick={() => onOpen(t)}>
+                    <p className={cn("line-clamp-2", t.status === "done" && "text-muted-foreground line-through")}>{t.title}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                      <SubjectDot subject={subj(t.subject_id)} />
+                      {subj(t.subject_id)?.name ?? "Personal"}
+                      {t.due_date && <DueBadge date={parseISO(t.due_date)} done={t.status === "done"} />}
+                    </div>
+                  </button>
+                  {/* touch devices can't drag: arrows move between columns */}
+                  <div className="mt-1.5 flex justify-end gap-1 md:hidden">
+                    {ci > 0 && <Button size="icon" variant="ghost" className="h-6 w-6" aria-label="Mover a la izquierda" onClick={() => onMove(t, COLUMNS[ci - 1]!.id)}><ChevronLeft className="h-3.5 w-3.5" /></Button>}
+                    {ci < COLUMNS.length - 1 && <Button size="icon" variant="ghost" className="h-6 w-6" aria-label="Mover a la derecha" onClick={() => onMove(t, COLUMNS[ci + 1]!.id)}><ChevronRight className="h-3.5 w-3.5" /></Button>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -1,0 +1,15 @@
+{
+  "name": "Brújula — panel del estudiante",
+  "short_name": "Brújula",
+  "description": "Tareas, entregas, horario, notas y estudio en un solo panel.",
+  "lang": "es",
+  "start_url": "/inicio",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1e293b",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

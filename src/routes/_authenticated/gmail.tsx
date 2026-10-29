@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { format, isToday } from "date-fns";
 import { es } from "date-fns/locale";
-import { ExternalLink, Mail, RefreshCw, Search } from "lucide-react";
+import { ExternalLink, Loader2, Mail, RefreshCw, Search, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,12 +11,16 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Empty, ErrorBox, Loading, PageHeader, Panel } from "@/components/dash/common";
-import { getMail, listMail } from "@/lib/gmail.functions";
+import { toast } from "sonner";
+import { useAiAvailable } from "@/components/dash/SyllabusImport";
+import { summarizeMail } from "@/lib/ai.functions";
+import { useTaskMutations } from "@/lib/data";
+import { getMail, googleConnectUrl, listMail } from "@/lib/gmail.functions";
 import { useGmailStatus } from "@/lib/useAgenda";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/gmail")({
-  head: () => ({ meta: [{ title: "Gmail · Panel personal" }, { name: "description", content: "Bandeja de entrada de solo lectura." }] }),
+  head: () => ({ meta: [{ title: "Correo · Brújula" }, { name: "description", content: "Bandeja de entrada de solo lectura." }] }),
   component: GmailPage,
 });
 
@@ -29,6 +33,7 @@ function GmailPage() {
   const [search, setSearch] = useState("");
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const connectFn = useServerFn(googleConnectUrl);
   const connected = status.data?.connected;
 
   const mail = useQuery({
@@ -46,7 +51,12 @@ function GmailPage() {
         <PageHeader title="Gmail" />
         <Panel>
           <Empty icon={Mail} title="Gmail no está conectado">
-            <p>Para ver tu correo, añade tus credenciales de Google (<code>GOOGLE_ACCESS_TOKEN</code> o credenciales OAuth) en tu archivo <code>.env</code>.</p>
+            {status.data?.available ? (
+              <>
+                <p>Conecta tu cuenta de Google con acceso de solo lectura.</p>
+                <Button size="sm" className="mt-3" onClick={async () => { try { window.location.href = (await connectFn()).url; } catch (e) { toast.error((e as Error).message); } }}>Conectar Gmail</Button>
+              </>
+            ) : <p>La conexión con Google no está configurada en este servidor.</p>}
             {status.data && "error" in status.data && status.data.error && <p className="mt-2 text-destructive">Detalle: {status.data.error}</p>}
           </Empty>
         </Panel>
@@ -112,7 +122,8 @@ function MessageDialog({ id, onClose }: { id: string | null; onClose: () => void
               <DialogTitle className="pr-6">{msg.data.subject}</DialogTitle>
               <DialogDescription>{msg.data.from} · {format(new Date(msg.data.date), "d MMM yyyy, HH:mm", { locale: es })}</DialogDescription>
             </DialogHeader>
-            <div className="max-h-[55vh] overflow-auto whitespace-pre-wrap break-words text-sm">{msg.data.body}</div>
+            <AiSummary id={msg.data.id} />
+            <div className="max-h-[45vh] overflow-auto whitespace-pre-wrap break-words text-sm">{msg.data.body}</div>
             <Button asChild variant="outline" size="sm" className="w-fit">
               <a href={`https://mail.google.com/mail/u/0/#all/${msg.data.threadId}`} target="_blank" rel="noreferrer">Abrir en Gmail <ExternalLink className="h-3.5 w-3.5" /></a>
             </Button>
@@ -120,5 +131,44 @@ function MessageDialog({ id, onClose }: { id: string | null; onClose: () => void
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function AiSummary({ id }: { id: string }) {
+  const ai = useAiAvailable();
+  const fn = useServerFn(summarizeMail);
+  const { saveMany } = useTaskMutations();
+  const [added, setAdded] = useState(false);
+  const sum = useQuery({
+    queryKey: ["gmail", "ai", id],
+    queryFn: () => fn({ data: { id, today: format(new Date(), "yyyy-MM-dd"), tz: Intl.DateTimeFormat().resolvedOptions().timeZone } }),
+    enabled: false,
+    staleTime: Infinity,
+    retry: false,
+  });
+  if (!ai) return null;
+  if (!sum.data && !sum.isFetching && !sum.error)
+    return <Button size="sm" variant="outline" className="w-fit" onClick={() => sum.refetch()}><Sparkles className="h-3.5 w-3.5" /> Resumir con IA</Button>;
+  if (sum.isFetching) return <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Resumiendo…</p>;
+  if (sum.error) return <ErrorBox error={sum.error} />;
+  const r = sum.data!;
+  const dated = r.deadlines.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d.date));
+  return (
+    <div className="space-y-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
+      <p className="flex items-start gap-1.5"><Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />{r.summary}</p>
+      {r.action_items.length > 0 && <ul className="list-disc pl-6 text-muted-foreground">{r.action_items.map((a, i) => <li key={i}>{a}</li>)}</ul>}
+      {dated.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground">{dated.map((d) => `${d.title} (${d.date})`).join(" · ")}</span>
+          <Button size="sm" variant="outline" className="h-7" disabled={added || saveMany.isPending}
+            onClick={() => saveMany.mutate(
+              dated.map((d) => ({ title: d.title.slice(0, 200), due_date: d.date, due_time: d.time && /^\d{2}:\d{2}$/.test(d.time) ? d.time : null, kind: d.kind, priority: "high", status: "todo", recurrence: "none" })),
+              { onSuccess: () => { setAdded(true); toast.success("Añadido a tus tareas"); } },
+            )}>
+            {added ? "Añadido" : `Crear ${dated.length} tarea${dated.length > 1 ? "s" : ""}`}
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }

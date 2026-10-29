@@ -1,16 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import {
-  BookOpen,
-  CalendarDays,
-  CheckSquare,
-  Home,
-  Link2,
-  Mail,
-  Moon,
-  Plus,
-  Settings,
-  Sun,
-} from "lucide-react";
+import { Link2, Moon, Plus, Sun, Timer } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   CommandDialog,
@@ -23,15 +12,7 @@ import {
   CommandShortcut,
 } from "@/components/ui/command";
 import { useLinks } from "@/lib/data";
-
-const NAV = [
-  { to: "/inicio", label: "Inicio", icon: Home },
-  { to: "/calendario", label: "Calendario", icon: CalendarDays },
-  { to: "/tareas", label: "Tareas", icon: CheckSquare },
-  { to: "/universidad", label: "Universidad", icon: BookOpen },
-  { to: "/gmail", label: "Gmail", icon: Mail },
-  { to: "/ajustes", label: "Ajustes", icon: Settings },
-] as const;
+import { NAV_ITEMS } from "./nav";
 
 function toggleTheme() {
   const next = !document.documentElement.classList.contains("dark");
@@ -81,6 +62,9 @@ export function CommandPalette() {
           >
             <Plus /> Nueva tarea
           </CommandItem>
+          <CommandItem onSelect={() => run(() => navigate({ to: "/estudio" }))}>
+            <Timer /> Empezar pomodoro
+          </CommandItem>
           <CommandItem onSelect={() => run(toggleTheme)}>
             <Moon className="dark:hidden" />
             <Sun className="hidden dark:block" />
@@ -89,7 +73,7 @@ export function CommandPalette() {
         </CommandGroup>
         <CommandSeparator />
         <CommandGroup heading="Ir a">
-          {NAV.map(({ to, label, icon: Icon }) => (
+          {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
             <CommandItem key={to} onSelect={() => run(() => navigate({ to }))}>
               <Icon /> {label}
             </CommandItem>

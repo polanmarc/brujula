@@ -1,60 +1,61 @@
-# Campus Brújula Personal
+# Brújula — panel del estudiante
 
-Panel privado y autónomo para gestión de vida universitaria y personal: tareas, entregas de Moodle (TecnoCampus), calendario y correo.
+Dashboard para estudiantes (universidad, FP, bachillerato, academias…): tareas, entregas, exámenes, horario, notas, horas de estudio y correo en un solo sitio. Multiusuario: cada estudiante tiene su cuenta y sus integraciones.
 
 ## Características
 
-- **Universidad & Moodle**: Sincronización automática de entregas y exámenes vía exportación de calendario iCal / archivo `.ics`. La sincronización se limita en el servidor (como máximo una vez cada 30 min) y puede programarse por cron.
-- **Calendario unificado**: Tareas y eventos integrados sin duplicados.
-- **Gmail**: Bandeja de entrada de solo lectura para consulta rápida.
-- **Recordatorios de entregas**: Notificaciones del navegador (opt-in desde Ajustes) para tareas que vencen hoy o mañana.
-- **Paleta de comandos (⌘K / Ctrl+K)**: Salto rápido entre secciones, nueva tarea y enlaces rápidos.
-- **Notas y enlaces rápidos**: Acceso directo a portales académicos y apuntes.
-- **Autónomo e independiente**: Funciona con tu propia base de datos de Supabase y sin ataduras a plataformas propietarias.
+- **Calendarios iCal ilimitados**: Moodle, Canvas, Google Classroom, Blackboard, Teams, el horario de tu centro… Se sincronizan solos (como máximo cada 30 min por fuente) y por cron. Los exámenes se detectan por el título.
+- **Agenda unificada**: tareas, entregas, exámenes y clases sin duplicados, con filtros por tipo.
+- **Inicio configurable**: vencidas aparte de las próximas, «Ahora / Siguiente clase», cuenta atrás de exámenes, horas de estudio y racha. Cada widget se puede ocultar.
+- **Tareas**: tipos (tarea, entrega, examen), subtareas, tiempo estimado, repetición, lista, tablero Kanban y calendario.
+- **Calificaciones**: criterios de evaluación con pesos, media ponderada por asignatura y global (por créditos) y la calculadora «¿qué necesito sacar para aprobar o llegar a mi objetivo?».
+- **Horario y asistencia**: horario semanal, pasar lista y aviso al acercarse al límite de faltas.
+- **Estudio**: pomodoro y cronómetro que siguen funcionando al cambiar de página, estadísticas, racha, modo exámenes con plan de estudio automático y revisión semanal.
+- **Asignaturas y apuntes**: ficha con profesor, aula, créditos y nota objetivo; notas en Markdown asociadas a cada asignatura.
+- **IA (Claude)**: importar la guía docente en PDF (criterios y fechas), resumir correos y crear tareas con sus fechas, y planificar la semana.
+- **Grupos**: tareas compartidas con compañeros mediante un código de invitación.
+- **Finanzas**: ingresos (becas, trabajo), gastos por categoría y suscripciones mensuales.
+- **Gmail de solo lectura** con OAuth por usuario.
+- **Recordatorios**: notificaciones push (PWA instalable) y resumen diario por email.
+- **Exportar** tu agenda como feed iCal para Google Calendar, Apple Calendar u Outlook.
+- **Paleta de comandos (⌘K / Ctrl+K)** y navegación inferior en el móvil.
 
-## Configuración y Variables de Entorno
+## Puesta en marcha
 
-Crea o edita tu archivo `.env` en la raíz del proyecto:
+1. Copia `.env.example` a `.env` y rellena al menos el bloque «Obligatorias». Cada variable opcional activa su función y, si falta, la interfaz la oculta o lo indica.
+2. Aplica las migraciones de `drizzle/migrations/` en orden (`0000`, `0001`, `0002`) desde el editor SQL de Supabase, o con `DATABASE_URL=… npx drizzle-kit migrate`.
+3. Instala las dependencias y arranca:
 
-```env
-# Supabase (Tu propio proyecto)
-SUPABASE_URL="https://tu-proyecto.supabase.co"
-SUPABASE_PUBLISHABLE_KEY="tu_clave_publica_de_supabase"
-SUPABASE_SERVICE_ROLE_KEY="tu_clave_service_role_secreta"
-
-VITE_SUPABASE_URL="https://tu-proyecto.supabase.co"
-VITE_SUPABASE_PUBLISHABLE_KEY="tu_clave_publica_de_supabase"
-
-# Gmail (Opcional)
-GOOGLE_ACCESS_TOKEN="tu_token_de_acceso_opcional"
-
-# Sincronización programada de Moodle (Opcional)
-CRON_SECRET="un_secreto_largo_y_aleatorio"
-```
-
-## Sincronización programada (cron)
-
-Para mantener Moodle al día sin abrir el panel, hay un endpoint protegido por secreto:
-
-```
-POST /api/cron/sync
-Authorization: Bearer <CRON_SECRET>
-```
-
-Configúralo en tu proveedor de cron (p. ej. Vercel Cron, GitHub Actions o `cron` del sistema).
-Durante una rotación de secreto puedes definir `CRON_SECRET_PREVIOUS` para aceptar el valor
-anterior temporalmente. Sin `CRON_SECRET` configurado, el endpoint responde `500`.
-
-## Desarrollo Local
-
-1. Instala las dependencias:
 ```sh
 npm install
-```
-
-2. Inicia el servidor de desarrollo:
-```sh
 npm run dev
 ```
 
-3. Abre [http://localhost:3000](http://localhost:3000) (o el puerto indicado en la terminal).
+4. Abre [http://localhost:3000](http://localhost:3000). Las cuentas nuevas pasan por un onboarding de 3 pasos.
+
+### Gmail (OAuth por usuario)
+
+En Google Cloud Console crea un ID de cliente OAuth de tipo «Aplicación web», activa la Gmail API y añade la URI de redirección `<APP_URL>/api/google/callback`. El permiso que se pide es `gmail.readonly`. Mientras la app esté en modo «Testing», añade a los usuarios como testers. Para abrirla al público, Google exige verificar la app porque es un permiso restringido.
+
+### Inicio de sesión con Google (opcional)
+
+Es distinto de Gmail: actívalo en Supabase → Authentication → Providers → Google.
+
+## Tareas programadas (cron)
+
+Ambas rutas usan `Authorization: Bearer <CRON_SECRET>`:
+
+| Ruta | Qué hace | Frecuencia sugerida |
+|---|---|---|
+| `POST /api/cron/sync` | Sincroniza los calendarios de todos los usuarios | cada 1–3 h |
+| `POST /api/cron/notify` | Envía push y emails con lo que vence hoy y mañana | una vez al día (p. ej. 07:30) |
+
+Durante una rotación de secreto puedes definir `CRON_SECRET_PREVIOUS`. Si `CRON_SECRET` no está configurado, las rutas responden `500`.
+
+## Desarrollo
+
+```sh
+npm test         # vitest
+npx tsc --noEmit # tipos
+npm run lint
+```

@@ -1,7 +1,11 @@
 ## Architecture rules
-- Integrations (Moodle ICS, Gmail) run only in `createServerFn` handlers that call `is_app_owner()`; the app is single-owner (first auth user) so shared connector credentials never reach other accounts.
-- The one exception is the scheduled sync route `POST /api/cron/sync` in `src/server.ts`, a trusted path authenticated by the `CRON_SECRET` shared secret (`authenticateCronRequest`); it syncs every account with a configured ICS URL (the owner in practice) via `runMoodleSync` with the admin client.
-- The Moodle sync core lives in `src/lib/moodle-sync.ts` (plain functions, admin client, explicit `user_id`) and is shared by the server fns and the cron route; `runMoodleSync` is throttled by `SYNC_THROTTLE_MS` unless `force` is passed.
-- The private Moodle ICS URL lives in `user_settings.moodle_ics_url`, which authenticated users cannot SELECT; read it only via the admin client in server code.
-- Moodle events and tasks are merged in `buildAgenda`; a task with `source_uid` hides its matching event to avoid duplicates.
+- The app is multi-user: every table is scoped by `user_id` with RLS (`auth.uid() = user_id`). The only cross-user data is study groups: `tasks` with a `group_id` are visible to group members via `is_group_member()`; joining a group only happens through the `join_group(code)` RPC.
+- Integrations (calendar iCal feeds, Gmail, AI) run only in `createServerFn` handlers behind `requireSupabaseAuth` and always act on `context.userId`. Server-only modules (`*.server.ts`, `client.server`) are loaded with dynamic `import()` inside handlers so they never reach the client bundle.
+- Private iCal URLs live in `calendar_sources.ics_url`, which authenticated users cannot SELECT or write; the browser lists sources with explicit columns (never `select("*")`) and adds/replaces URLs only through server fns that use the admin client.
+- Gmail OAuth tokens live AES-GCM–encrypted (`TOKEN_ENCRYPTION_KEY`) in `google_accounts`, a table with no client grants. The OAuth `state` is HMAC-signed and binds the callback to the user who started it (`src/lib/crypto.server.ts`, `src/lib/google.server.ts`).
 - Gmail access is read-only in code: never call send/modify/trash endpoints.
+- Trusted server routes are handled in `src/server.ts`: `POST /api/cron/sync` and `POST /api/cron/notify` (authenticated by the `CRON_SECRET` shared secret via `authenticateCronRequest`), `GET /api/google/callback` (signed state) and `GET /api/ics/<feed_token>.ics` (per-user secret token in `profiles.feed_token`).
+- The calendar sync core lives in `src/lib/calendar-sync.ts` (plain functions, admin client, explicit `user_id`) and is shared by the server fns and the cron route; each source is throttled by `SYNC_THROTTLE_MS` unless `force` is passed.
+- Pure agenda logic lives in `src/lib/agenda.ts` (safe for server and browser); `src/lib/data.ts` adds the React Query hooks on top. `buildAgenda` merges tasks, calendar events and weekly classes; a task with `source_uid` hides its matching event to avoid duplicates.
+- AI features call Claude through `askStructured` in `src/lib/ai.server.ts` (structured outputs, per-user daily limit in `ai_requests`); never call the Anthropic API from elsewhere.
+- Schema changes go in a new file under `drizzle/migrations/` plus a matching update of `src/integrations/supabase/types.ts`.

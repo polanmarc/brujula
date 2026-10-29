@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { LayoutDashboard, Loader2 } from "lucide-react";
+import { Compass, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -10,10 +10,10 @@ import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Acceso · Panel personal" },
-      { name: "description", content: "Inicia sesión en tu panel personal privado." },
-      { property: "og:title", content: "Acceso · Panel personal" },
-      { property: "og:description", content: "Inicia sesión en tu panel personal privado." },
+      { title: "Acceso · Brújula" },
+      { name: "description", content: "Tu panel de estudiante: tareas, entregas, horario y notas." },
+      { property: "og:title", content: "Acceso · Brújula" },
+      { property: "og:description", content: "Tu panel de estudiante: tareas, entregas, horario y notas." },
     ],
   }),
   component: AuthPage,
@@ -51,14 +51,23 @@ function AuthPage() {
     }
   }
 
+  async function google() {
+    setBusy(true);
+    const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: `${window.location.origin}/inicio` } });
+    if (error) {
+      toast.error(error.message);
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm animate-in-up">
         <div className="mb-8 flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <LayoutDashboard className="h-4 w-4" />
+            <Compass className="h-4 w-4" />
           </div>
-          <span className="font-semibold">Panel personal</span>
+          <span className="font-semibold">Brújula</span>
         </div>
         {sent ? (
           <div className="rounded-lg border bg-card p-6">
@@ -69,8 +78,8 @@ function AuthPage() {
         ) : (
           <form onSubmit={submit} className="space-y-4 rounded-lg border bg-card p-6">
             <div>
-              <h1 className="text-lg font-semibold">{mode === "in" ? "Iniciar sesión" : "Crear cuenta de propietario"}</h1>
-              <p className="mt-1 text-sm text-muted-foreground">Acceso privado. Solo la primera cuenta creada puede usar las integraciones.</p>
+              <h1 className="text-lg font-semibold">{mode === "in" ? "Iniciar sesión" : "Crear cuenta"}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">Organiza tus estudios: entregas, exámenes, horario, notas y horas de estudio.</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Correo</Label>
@@ -83,6 +92,13 @@ function AuthPage() {
             <Button type="submit" className="w-full" disabled={busy}>
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               {mode === "in" ? "Entrar" : "Crear cuenta"}
+            </Button>
+            <div className="relative py-1 text-center text-xs text-muted-foreground">
+              <span className="relative z-10 bg-card px-2">o</span>
+              <span className="absolute inset-x-0 top-1/2 border-t" />
+            </div>
+            <Button type="button" variant="outline" className="w-full" disabled={busy} onClick={google}>
+              Continuar con Google
             </Button>
             <button type="button" className="w-full text-center text-xs text-muted-foreground hover:text-foreground" onClick={() => setMode(mode === "in" ? "up" : "in")}>
               {mode === "in" ? "¿Primera vez? Crear cuenta" : "Ya tengo cuenta"}

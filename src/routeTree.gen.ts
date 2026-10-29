@@ -13,8 +13,14 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedAjustesRouteImport } from './routes/_authenticated/ajustes'
+import { Route as AuthenticatedBienvenidaRouteImport } from './routes/_authenticated/bienvenida'
 import { Route as AuthenticatedCalendarioRouteImport } from './routes/_authenticated/calendario'
+import { Route as AuthenticatedCalificacionesRouteImport } from './routes/_authenticated/calificaciones'
+import { Route as AuthenticatedEstudioRouteImport } from './routes/_authenticated/estudio'
+import { Route as AuthenticatedFinanzasRouteImport } from './routes/_authenticated/finanzas'
 import { Route as AuthenticatedGmailRouteImport } from './routes/_authenticated/gmail'
+import { Route as AuthenticatedGruposRouteImport } from './routes/_authenticated/grupos'
+import { Route as AuthenticatedHorarioRouteImport } from './routes/_authenticated/horario'
 import { Route as AuthenticatedInicioRouteImport } from './routes/_authenticated/inicio'
 import { Route as AuthenticatedTareasRouteImport } from './routes/_authenticated/tareas'
 import { Route as AuthenticatedUniversidadRouteImport } from './routes/_authenticated/universidad'
@@ -38,14 +44,45 @@ const AuthenticatedAjustesRoute = AuthenticatedAjustesRouteImport.update({
   path: '/ajustes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedBienvenidaRoute = AuthenticatedBienvenidaRouteImport.update({
+  id: '/bienvenida',
+  path: '/bienvenida',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedCalendarioRoute = AuthenticatedCalendarioRouteImport.update({
   id: '/calendario',
   path: '/calendario',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedCalificacionesRoute =
+  AuthenticatedCalificacionesRouteImport.update({
+    id: '/calificaciones',
+    path: '/calificaciones',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedEstudioRoute = AuthenticatedEstudioRouteImport.update({
+  id: '/estudio',
+  path: '/estudio',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedFinanzasRoute = AuthenticatedFinanzasRouteImport.update({
+  id: '/finanzas',
+  path: '/finanzas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedGmailRoute = AuthenticatedGmailRouteImport.update({
   id: '/gmail',
   path: '/gmail',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedGruposRoute = AuthenticatedGruposRouteImport.update({
+  id: '/grupos',
+  path: '/grupos',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedHorarioRoute = AuthenticatedHorarioRouteImport.update({
+  id: '/horario',
+  path: '/horario',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedInicioRoute = AuthenticatedInicioRouteImport.update({
@@ -69,8 +106,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/ajustes': typeof AuthenticatedAjustesRoute
+  '/bienvenida': typeof AuthenticatedBienvenidaRoute
   '/calendario': typeof AuthenticatedCalendarioRoute
+  '/calificaciones': typeof AuthenticatedCalificacionesRoute
+  '/estudio': typeof AuthenticatedEstudioRoute
+  '/finanzas': typeof AuthenticatedFinanzasRoute
   '/gmail': typeof AuthenticatedGmailRoute
+  '/grupos': typeof AuthenticatedGruposRoute
+  '/horario': typeof AuthenticatedHorarioRoute
   '/inicio': typeof AuthenticatedInicioRoute
   '/tareas': typeof AuthenticatedTareasRoute
   '/universidad': typeof AuthenticatedUniversidadRoute
@@ -79,8 +122,14 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/ajustes': typeof AuthenticatedAjustesRoute
+  '/bienvenida': typeof AuthenticatedBienvenidaRoute
   '/calendario': typeof AuthenticatedCalendarioRoute
+  '/calificaciones': typeof AuthenticatedCalificacionesRoute
+  '/estudio': typeof AuthenticatedEstudioRoute
+  '/finanzas': typeof AuthenticatedFinanzasRoute
   '/gmail': typeof AuthenticatedGmailRoute
+  '/grupos': typeof AuthenticatedGruposRoute
+  '/horario': typeof AuthenticatedHorarioRoute
   '/inicio': typeof AuthenticatedInicioRoute
   '/tareas': typeof AuthenticatedTareasRoute
   '/universidad': typeof AuthenticatedUniversidadRoute
@@ -91,8 +140,14 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/ajustes': typeof AuthenticatedAjustesRoute
+  '/_authenticated/bienvenida': typeof AuthenticatedBienvenidaRoute
   '/_authenticated/calendario': typeof AuthenticatedCalendarioRoute
+  '/_authenticated/calificaciones': typeof AuthenticatedCalificacionesRoute
+  '/_authenticated/estudio': typeof AuthenticatedEstudioRoute
+  '/_authenticated/finanzas': typeof AuthenticatedFinanzasRoute
   '/_authenticated/gmail': typeof AuthenticatedGmailRoute
+  '/_authenticated/grupos': typeof AuthenticatedGruposRoute
+  '/_authenticated/horario': typeof AuthenticatedHorarioRoute
   '/_authenticated/inicio': typeof AuthenticatedInicioRoute
   '/_authenticated/tareas': typeof AuthenticatedTareasRoute
   '/_authenticated/universidad': typeof AuthenticatedUniversidadRoute
@@ -103,8 +158,14 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/ajustes'
+    | '/bienvenida'
     | '/calendario'
+    | '/calificaciones'
+    | '/estudio'
+    | '/finanzas'
     | '/gmail'
+    | '/grupos'
+    | '/horario'
     | '/inicio'
     | '/tareas'
     | '/universidad'
@@ -113,8 +174,14 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/ajustes'
+    | '/bienvenida'
     | '/calendario'
+    | '/calificaciones'
+    | '/estudio'
+    | '/finanzas'
     | '/gmail'
+    | '/grupos'
+    | '/horario'
     | '/inicio'
     | '/tareas'
     | '/universidad'
@@ -124,8 +191,14 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/ajustes'
+    | '/_authenticated/bienvenida'
     | '/_authenticated/calendario'
+    | '/_authenticated/calificaciones'
+    | '/_authenticated/estudio'
+    | '/_authenticated/finanzas'
     | '/_authenticated/gmail'
+    | '/_authenticated/grupos'
+    | '/_authenticated/horario'
     | '/_authenticated/inicio'
     | '/_authenticated/tareas'
     | '/_authenticated/universidad'
@@ -167,6 +240,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAjustesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/bienvenida': {
+      id: '/_authenticated/bienvenida'
+      path: '/bienvenida'
+      fullPath: '/bienvenida'
+      preLoaderRoute: typeof AuthenticatedBienvenidaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/calendario': {
       id: '/_authenticated/calendario'
       path: '/calendario'
@@ -174,11 +254,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCalendarioRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/calificaciones': {
+      id: '/_authenticated/calificaciones'
+      path: '/calificaciones'
+      fullPath: '/calificaciones'
+      preLoaderRoute: typeof AuthenticatedCalificacionesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/estudio': {
+      id: '/_authenticated/estudio'
+      path: '/estudio'
+      fullPath: '/estudio'
+      preLoaderRoute: typeof AuthenticatedEstudioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/finanzas': {
+      id: '/_authenticated/finanzas'
+      path: '/finanzas'
+      fullPath: '/finanzas'
+      preLoaderRoute: typeof AuthenticatedFinanzasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/gmail': {
       id: '/_authenticated/gmail'
       path: '/gmail'
       fullPath: '/gmail'
       preLoaderRoute: typeof AuthenticatedGmailRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/grupos': {
+      id: '/_authenticated/grupos'
+      path: '/grupos'
+      fullPath: '/grupos'
+      preLoaderRoute: typeof AuthenticatedGruposRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/horario': {
+      id: '/_authenticated/horario'
+      path: '/horario'
+      fullPath: '/horario'
+      preLoaderRoute: typeof AuthenticatedHorarioRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/inicio': {
@@ -207,8 +322,14 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAjustesRoute: typeof AuthenticatedAjustesRoute
+  AuthenticatedBienvenidaRoute: typeof AuthenticatedBienvenidaRoute
   AuthenticatedCalendarioRoute: typeof AuthenticatedCalendarioRoute
+  AuthenticatedCalificacionesRoute: typeof AuthenticatedCalificacionesRoute
+  AuthenticatedEstudioRoute: typeof AuthenticatedEstudioRoute
+  AuthenticatedFinanzasRoute: typeof AuthenticatedFinanzasRoute
   AuthenticatedGmailRoute: typeof AuthenticatedGmailRoute
+  AuthenticatedGruposRoute: typeof AuthenticatedGruposRoute
+  AuthenticatedHorarioRoute: typeof AuthenticatedHorarioRoute
   AuthenticatedInicioRoute: typeof AuthenticatedInicioRoute
   AuthenticatedTareasRoute: typeof AuthenticatedTareasRoute
   AuthenticatedUniversidadRoute: typeof AuthenticatedUniversidadRoute
@@ -216,8 +337,14 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAjustesRoute: AuthenticatedAjustesRoute,
+  AuthenticatedBienvenidaRoute: AuthenticatedBienvenidaRoute,
   AuthenticatedCalendarioRoute: AuthenticatedCalendarioRoute,
+  AuthenticatedCalificacionesRoute: AuthenticatedCalificacionesRoute,
+  AuthenticatedEstudioRoute: AuthenticatedEstudioRoute,
+  AuthenticatedFinanzasRoute: AuthenticatedFinanzasRoute,
   AuthenticatedGmailRoute: AuthenticatedGmailRoute,
+  AuthenticatedGruposRoute: AuthenticatedGruposRoute,
+  AuthenticatedHorarioRoute: AuthenticatedHorarioRoute,
   AuthenticatedInicioRoute: AuthenticatedInicioRoute,
   AuthenticatedTareasRoute: AuthenticatedTareasRoute,
   AuthenticatedUniversidadRoute: AuthenticatedUniversidadRoute,

@@ -1,10 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import type { Database } from "@/integrations/supabase/types";
 
-// Official Google Gmail REST API endpoints
+// Official Google Gmail REST API endpoints (read-only: never call send/modify/trash)
 const GATEWAY = "https://gmail.googleapis.com/gmail/v1";
 const BATCH = "https://www.googleapis.com/batch/gmail/v1";
 
@@ -18,53 +16,14 @@ export type MailItem = {
   unread: boolean;
 };
 
-async function getAccessToken(): Promise<string | null> {
-  // Direct Google access token
-  const token = process.env["GOOGLE_ACCESS_TOKEN"] || process.env["GOOGLE_MAIL_API_KEY"];
-  if (token) return token;
-
-  // Refresh token flow if client credentials and refresh token are provided
-  const clientId = process.env["GOOGLE_CLIENT_ID"];
-  const clientSecret = process.env["GOOGLE_CLIENT_SECRET"];
-  const refreshToken = process.env["GOOGLE_REFRESH_TOKEN"];
-
-  if (clientId && clientSecret && refreshToken) {
-    try {
-      const res = await fetch("https://oauth2.googleapis.com/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          client_id: clientId,
-          client_secret: clientSecret,
-          refresh_token: refreshToken,
-          grant_type: "refresh_token",
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        return data.access_token as string;
-      }
-    } catch {
-      // Failed to refresh token
-    }
-  }
-
-  return null;
+async function creds(userId: string): Promise<Record<string, string> | null> {
+  const { getUserAccessToken } = await import("@/lib/google.server");
+  const acc = await getUserAccessToken(userId);
+  return acc ? { Authorization: `Bearer ${acc.token}` } : null;
 }
 
-async function creds(): Promise<Record<string, string> | null> {
-  const token = await getAccessToken();
-  if (!token) return null;
-  return { Authorization: `Bearer ${token}` };
-}
-
-async function owner(supabase: SupabaseClient<Database>) {
-  const { data } = await supabase.rpc("is_app_owner");
-  if (!data) throw new Error("Acceso restringido al propietario del panel");
-}
-
-async function gm(path: string) {
-  const h = await creds();
+async function gm(userId: string, path: string) {
+  const h = await creds(userId);
   if (!h) throw new Error("GMAIL_NOT_CONNECTED");
   const res = await fetch(`${GATEWAY}${path}`, { headers: h });
   if (!res.ok) throw new Error(`Gmail [${res.status}]: ${await res.text()}`);
@@ -75,8 +34,8 @@ function header(headers: { name: string; value: string }[] = [], name: string) {
   return headers.find((x) => x.name.toLowerCase() === name.toLowerCase())?.value ?? "";
 }
 
-async function batchMetadata(ids: string[]): Promise<any[]> {
-  const h = await creds();
+async function batchMetadata(userId: string, ids: string[]): Promise<any[]> {
+  const h = await creds(userId);
   if (!h) return [];
   const boundary = "batch_dash_" + Math.random().toString(36).slice(2);
   const body =
@@ -119,21 +78,23 @@ async function batchMetadata(ids: string[]): Promise<any[]> {
 export const gmailStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await owner(context.supabase);
-    const token = await getAccessToken();
-    if (!token) return { connected: false as const, email: null, unread: 0 };
+    const { googleConfigured, getUserAccessToken } = await import("@/lib/google.server");
+    const available = googleConfigured();
     try {
+      const acc = available ? await getUserAccessToken(context.userId) : null;
+      if (!acc) return { connected: false as const, available, email: null, unread: 0 };
       const [profile, inbox] = await Promise.all([
-        gm("/users/me/profile"),
-        gm("/users/me/labels/INBOX"),
+        gm(context.userId, "/users/me/profile"),
+        gm(context.userId, "/users/me/labels/INBOX"),
       ]);
       return {
         connected: true as const,
+        available,
         email: profile.emailAddress as string,
         unread: (inbox.messagesUnread ?? 0) as number,
       };
     } catch (e) {
-      return { connected: false as const, email: null, unread: 0, error: (e as Error).message };
+      return { connected: false as const, available, email: null, unread: 0, error: (e as Error).message };
     }
   });
 
@@ -149,7 +110,6 @@ export const listMail = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await owner(context.supabase);
     const q = [data.q, data.unreadOnly ? "is:unread" : ""].filter(Boolean).join(" ");
     const params = new URLSearchParams({ maxResults: "25", labelIds: "INBOX" });
     if (q) {
@@ -157,9 +117,9 @@ export const listMail = createServerFn({ method: "POST" })
       params.set("q", q);
     }
     if (data.pageToken) params.set("pageToken", data.pageToken);
-    const list = await gm(`/users/me/messages?${params}`);
+    const list = await gm(context.userId, `/users/me/messages?${params}`);
     const ids: string[] = (list.messages ?? []).map((m: { id: string }) => m.id);
-    const metas = ids.length ? await batchMetadata(ids) : [];
+    const metas = ids.length ? await batchMetadata(context.userId, ids) : [];
     const byId = new Map(metas.map((m) => [m.id, m]));
     const items: MailItem[] = ids
       .map((id) => byId.get(id))
@@ -197,8 +157,7 @@ export const getMail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ id: z.string().regex(/^[a-zA-Z0-9]+$/) }).parse(input))
   .handler(async ({ data, context }) => {
-    await owner(context.supabase);
-    const m = await gm(`/users/me/messages/${data.id}?format=full`);
+    const m = await gm(context.userId, `/users/me/messages/${data.id}?format=full`);
     const text = findBody(m.payload, "text/plain");
     const html = text ? null : findBody(m.payload, "text/html");
     return {
@@ -219,4 +178,19 @@ export const getMail = createServerFn({ method: "POST" })
               .trim()
           : (m.snippet ?? "")),
     };
+  });
+
+export const googleConnectUrl = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { buildAuthUrl } = await import("@/lib/google.server");
+    return { url: buildAuthUrl(context.userId) };
+  });
+
+export const googleDisconnect = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { disconnectGoogle } = await import("@/lib/google.server");
+    await disconnectGoogle(context.userId);
+    return { ok: true };
   });

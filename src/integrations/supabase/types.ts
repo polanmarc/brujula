@@ -14,13 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_requests: {
+        Row: {
+          created_at: string
+          feature: string
+          id: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          feature: string
+          id?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          feature?: string
+          id?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      attendance: {
+        Row: {
+          date: string
+          id: string
+          status: string
+          subject_id: string
+          user_id: string
+        }
+        Insert: {
+          date: string
+          id?: string
+          status: string
+          subject_id: string
+          user_id?: string
+        }
+        Update: {
+          date?: string
+          id?: string
+          status?: string
+          subject_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       calendar_events: {
         Row: {
           course: string | null
           description: string | null
           ends_at: string | null
           id: string
+          kind: string
           source: string
+          source_id: string | null
           starts_at: string
           title: string
           uid: string
@@ -33,7 +80,9 @@ export type Database = {
           description?: string | null
           ends_at?: string | null
           id?: string
+          kind?: string
           source?: string
+          source_id?: string | null
           starts_at: string
           title: string
           uid: string
@@ -46,7 +95,9 @@ export type Database = {
           description?: string | null
           ends_at?: string | null
           id?: string
+          kind?: string
           source?: string
+          source_id?: string | null
           starts_at?: string
           title?: string
           uid?: string
@@ -56,23 +107,248 @@ export type Database = {
         }
         Relationships: []
       }
+      calendar_sources: {
+        Row: {
+          color: string
+          created_at: string
+          ics_url: string | null
+          id: string
+          kind: string
+          last_error: string | null
+          last_sync: string | null
+          name: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          ics_url?: string | null
+          id?: string
+          kind?: string
+          last_error?: string | null
+          last_sync?: string | null
+          name: string
+          user_id?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          ics_url?: string | null
+          id?: string
+          kind?: string
+          last_error?: string | null
+          last_sync?: string | null
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      class_sessions: {
+        Row: {
+          end_time: string
+          id: string
+          room: string | null
+          start_time: string
+          subject_id: string
+          user_id: string
+          weekday: number
+        }
+        Insert: {
+          end_time: string
+          id?: string
+          room?: string | null
+          start_time: string
+          subject_id: string
+          user_id?: string
+          weekday: number
+        }
+        Update: {
+          end_time?: string
+          id?: string
+          room?: string | null
+          start_time?: string
+          subject_id?: string
+          user_id?: string
+          weekday?: number
+        }
+        Relationships: []
+      }
+      google_accounts: {
+        Row: {
+          access_token_enc: string | null
+          email: string | null
+          expires_at: string | null
+          refresh_token_enc: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token_enc?: string | null
+          email?: string | null
+          expires_at?: string | null
+          refresh_token_enc: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token_enc?: string | null
+          email?: string | null
+          expires_at?: string | null
+          refresh_token_enc?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      grade_items: {
+        Row: {
+          created_at: string
+          grade: number | null
+          id: string
+          max_grade: number
+          name: string
+          subject_id: string
+          user_id: string
+          weight: number
+        }
+        Insert: {
+          created_at?: string
+          grade?: number | null
+          id?: string
+          max_grade?: number
+          name: string
+          subject_id: string
+          user_id?: string
+          weight: number
+        }
+        Update: {
+          created_at?: string
+          grade?: number | null
+          id?: string
+          max_grade?: number
+          name?: string
+          subject_id?: string
+          user_id?: string
+          weight?: number
+        }
+        Relationships: []
+      }
+      group_members: {
+        Row: {
+          display_name: string
+          group_id: string
+          joined_at: string
+          user_id: string
+        }
+        Insert: {
+          display_name?: string
+          group_id: string
+          joined_at?: string
+          user_id?: string
+        }
+        Update: {
+          display_name?: string
+          group_id?: string
+          joined_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notes: {
         Row: {
           content: string
           id: string
+          subject_id: string | null
+          title: string
           updated_at: string
           user_id: string
         }
         Insert: {
           content?: string
           id?: string
+          subject_id?: string | null
+          title?: string
           updated_at?: string
           user_id?: string
         }
         Update: {
           content?: string
           id?: string
+          subject_id?: string | null
+          title?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          absence_limit_pct: number
+          created_at: string
+          degree: string | null
+          digest_email: boolean
+          display_name: string
+          feed_token: string
+          hidden_widgets: string[]
+          onboarded: boolean
+          university: string | null
+          updated_at: string
+          user_id: string
+          weekly_goal_minutes: number
+        }
+        Insert: {
+          absence_limit_pct?: number
+          created_at?: string
+          degree?: string | null
+          digest_email?: boolean
+          display_name?: string
+          feed_token?: string
+          hidden_widgets?: string[]
+          onboarded?: boolean
+          university?: string | null
+          updated_at?: string
+          user_id?: string
+          weekly_goal_minutes?: number
+        }
+        Update: {
+          absence_limit_pct?: number
+          created_at?: string
+          degree?: string | null
+          digest_email?: boolean
+          display_name?: string
+          feed_token?: string
+          hidden_widgets?: string[]
+          onboarded?: boolean
+          university?: string | null
+          updated_at?: string
+          user_id?: string
+          weekly_goal_minutes?: number
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_id?: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
           user_id?: string
         }
         Relationships: []
@@ -101,29 +377,98 @@ export type Database = {
         }
         Relationships: []
       }
-      subjects: {
+      study_groups: {
         Row: {
-          color: string
           created_at: string
           id: string
-          moodle_url: string | null
+          invite_code: string
           name: string
+          owner_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invite_code?: string
+          name: string
+          owner_id?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invite_code?: string
+          name?: string
+          owner_id?: string
+        }
+        Relationships: []
+      }
+      study_sessions: {
+        Row: {
+          id: string
+          kind: string
+          minutes: number
+          started_at: string
+          subject_id: string | null
           user_id: string
         }
         Insert: {
-          color?: string
-          created_at?: string
           id?: string
-          moodle_url?: string | null
-          name: string
+          kind?: string
+          minutes: number
+          started_at: string
+          subject_id?: string | null
           user_id?: string
         }
         Update: {
+          id?: string
+          kind?: string
+          minutes?: number
+          started_at?: string
+          subject_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      subjects: {
+        Row: {
+          absence_limit: number | null
+          color: string
+          created_at: string
+          credits: number | null
+          id: string
+          moodle_url: string | null
+          name: string
+          pass_grade: number
+          room: string | null
+          target_grade: number | null
+          teacher: string | null
+          user_id: string
+        }
+        Insert: {
+          absence_limit?: number | null
           color?: string
           created_at?: string
+          credits?: number | null
+          id?: string
+          moodle_url?: string | null
+          name: string
+          pass_grade?: number
+          room?: string | null
+          target_grade?: number | null
+          teacher?: string | null
+          user_id?: string
+        }
+        Update: {
+          absence_limit?: number | null
+          color?: string
+          created_at?: string
+          credits?: number | null
           id?: string
           moodle_url?: string | null
           name?: string
+          pass_grade?: number
+          room?: string | null
+          target_grade?: number | null
+          teacher?: string | null
           user_id?: string
         }
         Relationships: []
@@ -134,7 +479,11 @@ export type Database = {
           description: string | null
           due_date: string | null
           due_time: string | null
+          estimate_minutes: number | null
+          group_id: string | null
           id: string
+          kind: string
+          parent_id: string | null
           priority: string
           recurrence: string
           source_uid: string | null
@@ -149,7 +498,11 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           due_time?: string | null
+          estimate_minutes?: number | null
+          group_id?: string | null
           id?: string
+          kind?: string
+          parent_id?: string | null
           priority?: string
           recurrence?: string
           source_uid?: string | null
@@ -164,7 +517,11 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           due_time?: string | null
+          estimate_minutes?: number | null
+          group_id?: string | null
           id?: string
+          kind?: string
+          parent_id?: string | null
           priority?: string
           recurrence?: string
           source_uid?: string | null
@@ -174,36 +531,37 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "tasks_subject_id_fkey"
-            columns: ["subject_id"]
-            isOneToOne: false
-            referencedRelation: "subjects"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
-      user_settings: {
+      transactions: {
         Row: {
-          last_moodle_sync: string | null
-          moodle_base_url: string | null
-          moodle_ics_url: string | null
-          updated_at: string
+          amount: number
+          category: string
+          created_at: string
+          date: string
+          description: string | null
+          id: string
+          recurring: boolean
           user_id: string
         }
         Insert: {
-          last_moodle_sync?: string | null
-          moodle_base_url?: string | null
-          moodle_ics_url?: string | null
-          updated_at?: string
+          amount: number
+          category?: string
+          created_at?: string
+          date?: string
+          description?: string | null
+          id?: string
+          recurring?: boolean
           user_id?: string
         }
         Update: {
-          last_moodle_sync?: string | null
-          moodle_base_url?: string | null
-          moodle_ics_url?: string | null
-          updated_at?: string
+          amount?: number
+          category?: string
+          created_at?: string
+          date?: string
+          description?: string | null
+          id?: string
+          recurring?: boolean
           user_id?: string
         }
         Relationships: []
@@ -213,7 +571,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      is_app_owner: { Args: never; Returns: boolean }
+      is_group_member: { Args: { gid: string }; Returns: boolean }
+      join_group: { Args: { code: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
