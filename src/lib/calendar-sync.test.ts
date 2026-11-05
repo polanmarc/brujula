@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyEvent, isThrottled, mapLimit, SYNC_THROTTLE_MS } from "./calendar-sync";
+import { classifyEvent, isThrottled, mapLimit, staleEventIds, SYNC_THROTTLE_MS } from "./calendar-sync";
 
 describe("isThrottled", () => {
   const now = Date.UTC(2026, 9, 27, 12, 0, 0);
@@ -22,6 +22,22 @@ describe("classifyEvent", () => {
   it("detects exams by title", () => expect(classifyEvent("Examen parcial de Redes", "deadlines")).toBe("exam"));
   it("defaults to deadlines", () => expect(classifyEvent("Entrega práctica 2", "deadlines")).toBe("deadline"));
   it("other feeds are generic events", () => expect(classifyEvent("Charla", "other")).toBe("event"));
+});
+
+describe("staleEventIds", () => {
+  const now = Date.UTC(2026, 10, 5, 12, 0, 0);
+  const at = (days: number) => new Date(now + days * 86_400_000).toISOString();
+  const stored = [
+    { id: "a", uid: "kept@moodle", starts_at: at(3) },
+    { id: "b", uid: "deleted@moodle", starts_at: at(3) },
+    { id: "c", uid: "old@moodle", starts_at: at(-10) },
+  ];
+  it("returns future events missing from the feed", () => {
+    expect(staleEventIds(stored, ["kept@moodle"], now)).toEqual(["b"]);
+  });
+  it("keeps past events even if the feed dropped them", () => {
+    expect(staleEventIds(stored, ["kept@moodle", "deleted@moodle"], now)).toEqual([]);
+  });
 });
 
 describe("mapLimit", () => {

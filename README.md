@@ -4,7 +4,7 @@ Dashboard para estudiantes (universidad, FP, bachillerato, academias…): tareas
 
 ## Características
 
-- **Calendarios iCal ilimitados**: Moodle, Canvas, Google Classroom, Blackboard, Teams, el horario de tu centro… Se sincronizan solos (como máximo cada 30 min por fuente) y por cron. Los exámenes se detectan por el título.
+- **Calendarios iCal ilimitados**: Moodle, Canvas, Google Classroom, Blackboard, Teams, el horario de tu centro… Se sincronizan solos (como máximo cada 5 min por fuente) y por cron; los eventos futuros que desaparecen del feed se eliminan. Los exámenes se detectan por el título.
 - **Agenda unificada**: tareas, entregas, exámenes y clases sin duplicados, con filtros por tipo.
 - **Inicio configurable**: vencidas aparte de las próximas, «Ahora / Siguiente clase», cuenta atrás de exámenes, horas de estudio y racha. Cada widget se puede ocultar.
 - **Tareas**: tipos (tarea, entrega, examen), subtareas, tiempo estimado, repetición, lista, tablero Kanban y calendario.

@@ -154,7 +154,7 @@ function CalendarSettings() {
     mutationFn: () => syncFn({ data: { force: true } }),
     onSuccess: (r) => {
       if (r.errors.length) toast.error(r.errors.join("\n"));
-      else toast.success(`${r.imported} eventos actualizados`);
+      else toast.success(`${r.imported} eventos actualizados${r.removed ? `, ${r.removed} eliminados` : ""}`);
       refresh();
     },
     onError: onErr,

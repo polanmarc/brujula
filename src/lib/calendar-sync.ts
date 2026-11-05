@@ -15,7 +15,8 @@ export type EventKind = "deadline" | "exam" | "class" | "event";
 
 
 // Skip a sync if the last one finished less than this ago (unless forced).
-export const SYNC_THROTTLE_MS = 30 * 60 * 1000;
+// Only the on-load auto-sync is unforced; cron and the settings buttons always force.
+export const SYNC_THROTTLE_MS = 5 * 60 * 1000;
 
 const EXAM_RE = /\b(examen|exam|parcial|final|prueba|quiz|test|control|midterm)\b/i;
 
@@ -32,9 +33,23 @@ export function classifyEvent(title: string, sourceKind: string): EventKind {
   return sourceKind === "other" ? "event" : "deadline";
 }
 
+/**
+ * Stored events of a source that are gone from its feed and should be deleted.
+ * Only future ones: past events drop out of Moodle's "recent" export window, so their
+ * absence doesn't mean they were removed.
+ */
+export function staleEventIds(
+  stored: { id: string; uid: string; starts_at: string }[],
+  feedUids: Iterable<string>,
+  now = Date.now(),
+): string[] {
+  const keep = new Set(feedUids);
+  return stored.filter((e) => !keep.has(e.uid) && new Date(e.starts_at).getTime() >= now).map((e) => e.id);
+}
+
 export type SyncResult =
-  | { imported: number; newSubjects: number; skipped: false }
-  | { imported: 0; newSubjects: 0; skipped: true; reason: "not_configured" | "throttled" };
+  | { imported: number; newSubjects: number; removed: number; skipped: false }
+  | { imported: 0; newSubjects: 0; removed: 0; skipped: true; reason: "not_configured" | "throttled" };
 
 async function storeEvents(
   admin: AdminClient,
@@ -58,6 +73,28 @@ async function storeEvents(
       if (error) throw new Error(error.message);
     }
   }
+  // drop future events the feed no longer has (deleted/hidden in Moodle). An empty feed is
+  // more likely a hiccup or expired URL than a wiped course, so never prune on it.
+  let removed = 0;
+  if (source.id && events.length) {
+    const { data: stored, error } = await admin
+      .from("calendar_events")
+      .select("id, uid, starts_at")
+      .eq("user_id", userId)
+      .eq("source_id", source.id)
+      .gte("starts_at", new Date().toISOString());
+    if (error) throw new Error(error.message);
+    const stale = staleEventIds(stored ?? [], events.map((e) => e.uid));
+    for (let i = 0; i < stale.length; i += 200) {
+      const { error: delError } = await admin
+        .from("calendar_events")
+        .delete()
+        .eq("user_id", userId)
+        .in("id", stale.slice(i, i + 200));
+      if (delError) throw new Error(delError.message);
+    }
+    removed = stale.length;
+  }
   // auto-create subjects for new courses (admin bypasses RLS, so scope by user_id)
   const courses = [...new Set(events.map((e) => e.course).filter(Boolean))] as string[];
   let newSubjects = 0;
@@ -77,7 +114,7 @@ async function storeEvents(
       newSubjects = missing.length;
     }
   }
-  return { imported: events.length, newSubjects };
+  return { imported: events.length, newSubjects, removed };
 }
 
 /** Download one source's iCal URL and upsert its events. Honors the throttle. */
@@ -94,9 +131,9 @@ export async function runSourceSync(
     .eq("id", sourceId)
     .maybeSingle();
 
-  if (!s?.ics_url) return { imported: 0, newSubjects: 0, skipped: true, reason: "not_configured" };
+  if (!s?.ics_url) return { imported: 0, newSubjects: 0, removed: 0, skipped: true, reason: "not_configured" };
   if (!opts.force && isThrottled(s.last_sync)) {
-    return { imported: 0, newSubjects: 0, skipped: true, reason: "throttled" };
+    return { imported: 0, newSubjects: 0, removed: 0, skipped: true, reason: "throttled" };
   }
 
   try {
@@ -129,6 +166,7 @@ export async function runUserSync(userId: string, opts: { force?: boolean } = {}
     .not("ics_url", "is", null);
   let imported = 0;
   let newSubjects = 0;
+  let removed = 0;
   let synced = 0;
   const errors: string[] = [];
   for (const { id } of data ?? []) {
@@ -138,12 +176,13 @@ export async function runUserSync(userId: string, opts: { force?: boolean } = {}
         synced++;
         imported += r.imported;
         newSubjects += r.newSubjects;
+        removed += r.removed;
       }
     } catch (e) {
       errors.push((e as Error).message);
     }
   }
-  return { imported, newSubjects, synced, errors };
+  return { imported, newSubjects, removed, synced, errors };
 }
 
 /** Upsert events from a raw ICS file for a user (manual import — always runs). */
