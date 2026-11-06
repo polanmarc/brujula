@@ -69,6 +69,7 @@ export type Database = {
           source: string
           source_id: string | null
           starts_at: string
+          task_created_at: string | null
           title: string
           uid: string
           updated_at: string
@@ -84,6 +85,7 @@ export type Database = {
           source?: string
           source_id?: string | null
           starts_at: string
+          task_created_at?: string | null
           title: string
           uid: string
           updated_at?: string
@@ -99,6 +101,7 @@ export type Database = {
           source?: string
           source_id?: string | null
           starts_at?: string
+          task_created_at?: string | null
           title?: string
           uid?: string
           updated_at?: string
