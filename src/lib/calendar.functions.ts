@@ -45,7 +45,7 @@ export const addCalendarSource = createServerFn({ method: "POST" })
     try {
       return { id: row.id, ...(await runSourceSync(context.userId, row.id, { force: true })) };
     } catch (e) {
-      return { id: row.id, imported: 0, newSubjects: 0, skipped: false, error: (e as Error).message };
+      return { id: row.id, imported: 0, newSubjects: 0, removed: 0, tasksCreated: 0, tasksMoved: 0, skipped: false, error: (e as Error).message };
     }
   });
 
@@ -83,7 +83,7 @@ export const syncCalendars = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     if (data.sourceId) {
       const r = await runSourceSync(context.userId, data.sourceId, { force: !!data.force });
-      return { imported: r.imported, newSubjects: r.newSubjects, synced: r.skipped ? 0 : 1, errors: [] as string[] };
+      return { imported: r.imported, newSubjects: r.newSubjects, removed: r.removed, tasksCreated: r.tasksCreated, tasksMoved: r.tasksMoved, synced: r.skipped ? 0 : 1, errors: [] as string[] };
     }
     return runUserSync(context.userId, { force: !!data.force });
   });

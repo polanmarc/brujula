@@ -32,7 +32,8 @@ export function buildAuthUrl(userId: string): string {
     response_type: "code",
     scope: GMAIL_SCOPES.join(" "),
     access_type: "offline",
-    prompt: "consent",
+    // always show the account chooser, so users signed into a school account can pick another one
+    prompt: "select_account consent",
     include_granted_scopes: "true",
     state: signState(userId),
   });

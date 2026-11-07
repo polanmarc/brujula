@@ -12,8 +12,8 @@ describe("buildIcsFeed", () => {
       { ...base, id: "t3", title: "Leer tema", due_date: "2026-11-11", due_time: null, status: "todo", kind: "task", source_uid: "dup" },
     ],
     events: [
-      { id: "e1", uid: "dup", title: "Duplicado", description: null, course: null, starts_at: "2026-11-11T10:00:00Z", ends_at: null, url: null, source: "ics", source_id: null, kind: "deadline", updated_at: "", user_id: "u" },
-      { id: "e2", uid: "x@moodle", title: "Examen", description: null, course: "Redes", starts_at: "2026-11-12T08:00:00Z", ends_at: null, url: null, source: "ics", source_id: null, kind: "exam", updated_at: "", user_id: "u" },
+      { id: "e1", uid: "dup", title: "Duplicado", description: null, course: null, starts_at: "2026-11-11T10:00:00Z", ends_at: null, url: null, source: "ics", source_id: null, task_created_at: null, kind: "deadline", updated_at: "", user_id: "u" },
+      { id: "e2", uid: "x@moodle", title: "Examen", description: null, course: "Redes", starts_at: "2026-11-12T08:00:00Z", ends_at: null, url: null, source: "ics", source_id: null, task_created_at: null, kind: "exam", updated_at: "", user_id: "u" },
     ],
     sessions: [{ id: "s1", user_id: "u", subject_id: "sub", weekday: 2, start_time: "09:00:00", end_time: "11:00:00", room: "A1" }],
     subjects: [{ id: "sub", name: "Redes", color: "#000", created_at: "", user_id: "u", moodle_url: null, teacher: null, room: null, credits: null, absence_limit: null, pass_grade: 5, target_grade: null }],

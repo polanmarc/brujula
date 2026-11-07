@@ -136,14 +136,14 @@ function CalendarSettings() {
   const [url, setUrl] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const refresh = () => [qk.sources, qk.events, qk.subjects].forEach((k) => qc.invalidateQueries({ queryKey: k }));
+  const refresh = () => [qk.sources, qk.events, qk.subjects, qk.tasks].forEach((k) => qc.invalidateQueries({ queryKey: k }));
   const onErr = (e: Error) => toast.error(e.message);
 
   const add = useMutation({
     mutationFn: () => addFn({ data: { name: name.trim() || "Calendario", kind: kind as "deadlines", icsUrl: url } }),
     onSuccess: (r) => {
       if ("error" in r && r.error) toast.error(`Guardado, pero la primera sincronización falló: ${r.error}`);
-      else toast.success(`${r.imported} eventos importados`);
+      else toast.success(`${r.imported} eventos importados${r.tasksCreated ? `, ${r.tasksCreated} tareas creadas` : ""}${"tasksMoved" in r && r.tasksMoved ? `, ${r.tasksMoved} tareas movidas de fecha` : ""}`);
       setName("");
       setUrl("");
       refresh();
@@ -154,14 +154,14 @@ function CalendarSettings() {
     mutationFn: () => syncFn({ data: { force: true } }),
     onSuccess: (r) => {
       if (r.errors.length) toast.error(r.errors.join("\n"));
-      else toast.success(`${r.imported} eventos actualizados`);
+      else toast.success(`${r.imported} eventos actualizados${r.removed ? `, ${r.removed} eliminados` : ""}${r.tasksCreated ? `, ${r.tasksCreated} tareas creadas` : ""}${"tasksMoved" in r && r.tasksMoved ? `, ${r.tasksMoved} tareas movidas de fecha` : ""}`);
       refresh();
     },
     onError: onErr,
   });
   const imp = useMutation({
     mutationFn: (text: string) => importFn({ data: { text, kind: kind as "deadlines" } }),
-    onSuccess: (r) => { toast.success(`${r.imported} eventos importados`); refresh(); },
+    onSuccess: (r) => { toast.success(`${r.imported} eventos importados${r.tasksCreated ? `, ${r.tasksCreated} tareas creadas` : ""}${"tasksMoved" in r && r.tasksMoved ? `, ${r.tasksMoved} tareas movidas de fecha` : ""}`); refresh(); },
     onError: onErr,
   });
 
@@ -234,7 +234,7 @@ function SourceRow({ source, onChange }: { source: CalendarSource; onChange: () 
   const [url, setUrl] = useState("");
   const sync = useMutation({
     mutationFn: () => syncFn({ data: { force: true, sourceId: source.id } }),
-    onSuccess: (r) => { toast.success(`${r.imported} eventos actualizados`); onChange(); },
+    onSuccess: (r) => { toast.success(`${r.imported} eventos actualizados${r.tasksCreated ? `, ${r.tasksCreated} tareas creadas` : ""}${"tasksMoved" in r && r.tasksMoved ? `, ${r.tasksMoved} tareas movidas de fecha` : ""}`); onChange(); },
     onError: (e: Error) => { toast.error(e.message); onChange(); },
   });
   const replace = useMutation({

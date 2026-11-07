@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyEvent, isThrottled, mapLimit, SYNC_THROTTLE_MS } from "./calendar-sync";
+import { classifyEvent, isThrottled, localDueParts, mapLimit, rescheduledEvents, staleEventIds, SYNC_THROTTLE_MS, taskFromEvent } from "./calendar-sync";
 
 describe("isThrottled", () => {
   const now = Date.UTC(2026, 9, 27, 12, 0, 0);
@@ -24,6 +24,22 @@ describe("classifyEvent", () => {
   it("other feeds are generic events", () => expect(classifyEvent("Charla", "other")).toBe("event"));
 });
 
+describe("staleEventIds", () => {
+  const now = Date.UTC(2026, 10, 5, 12, 0, 0);
+  const at = (days: number) => new Date(now + days * 86_400_000).toISOString();
+  const stored = [
+    { id: "a", uid: "kept@moodle", starts_at: at(3) },
+    { id: "b", uid: "deleted@moodle", starts_at: at(3) },
+    { id: "c", uid: "old@moodle", starts_at: at(-10) },
+  ];
+  it("returns future events missing from the feed", () => {
+    expect(staleEventIds(stored, ["kept@moodle"], now)).toEqual(["b"]);
+  });
+  it("keeps past events even if the feed dropped them", () => {
+    expect(staleEventIds(stored, ["kept@moodle", "deleted@moodle"], now)).toEqual([]);
+  });
+});
+
 describe("mapLimit", () => {
   it("keeps order and never exceeds the limit", async () => {
     let running = 0;
@@ -38,4 +54,37 @@ describe("mapLimit", () => {
     expect(out).toEqual([2, 4, 6, 8, 10]);
     expect(peak).toBeLessThanOrEqual(2);
   });
+});
+
+describe("localDueParts", () => {
+  it("converts UTC to Madrid local time (winter, UTC+1)", () =>
+    expect(localDueParts("2026-11-20T22:59:00.000Z")).toEqual({ due_date: "2026-11-20", due_time: "23:59" }));
+  it("rolls over the day near midnight (summer, UTC+2)", () =>
+    expect(localDueParts("2026-06-10T22:30:00.000Z")).toEqual({ due_date: "2026-06-11", due_time: "00:30" }));
+});
+
+describe("taskFromEvent", () => {
+  const ev = { uid: "u1@moodle", title: "Entrega práctica 2", description: "PDF", starts_at: "2026-11-20T22:59:00.000Z" };
+  it("builds a high-priority deliverable linked to the event", () =>
+    expect(taskFromEvent(ev, "user", "subj")).toMatchObject({
+      user_id: "user", title: "Entrega práctica 2", subject_id: "subj", due_date: "2026-11-20", due_time: "23:59",
+      priority: "high", kind: "deliverable", status: "todo", source_uid: "u1@moodle",
+    }));
+  it("marks exams by title", () => expect(taskFromEvent({ ...ev, title: "Examen parcial" }, "user", null).kind).toBe("exam"));
+});
+
+describe("rescheduledEvents", () => {
+  it("reports an event moved to another day with its old and new local due", () =>
+    expect(
+      rescheduledEvents([{ uid: "a", starts_at: "2026-11-10T22:59:00Z" }], [{ uid: "a", starts_at: "2026-11-20T22:59:00Z" }]),
+    ).toEqual([
+      { uid: "a", from: { due_date: "2026-11-10", due_time: "23:59" }, to: { due_date: "2026-11-20", due_time: "23:59" } },
+    ]));
+  it("ignores unchanged and new events", () =>
+    expect(
+      rescheduledEvents(
+        [{ uid: "a", starts_at: "2026-11-10T22:59:00.000Z" }],
+        [{ uid: "a", starts_at: "2026-11-10T22:59:00Z" }, { uid: "b", starts_at: "2026-11-12T10:00:00Z" }],
+      ),
+    ).toEqual([]));
 });

@@ -187,6 +187,7 @@ function useCalendarAutoSync() {
           qc.invalidateQueries({ queryKey: qk.events });
           qc.invalidateQueries({ queryKey: qk.subjects });
           qc.invalidateQueries({ queryKey: qk.sources });
+          qc.invalidateQueries({ queryKey: qk.tasks });
         }
       })
       .catch((err) => {

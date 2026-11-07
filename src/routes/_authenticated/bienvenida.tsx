@@ -94,9 +94,9 @@ function SubjectsStep({ onNext }: { onNext: () => void }) {
     try {
       const r = await addSource({ data: { name: "Campus virtual", kind: "deadlines", icsUrl: url } });
       if ("error" in r && r.error) toast.error(r.error);
-      else toast.success(`${r.imported} eventos importados${r.newSubjects ? `, ${r.newSubjects} asignaturas creadas` : ""}`);
+      else toast.success(`${r.imported} eventos importados${r.newSubjects ? `, ${r.newSubjects} asignaturas creadas` : ""}${r.tasksCreated ? `, ${r.tasksCreated} tareas creadas` : ""}`);
       setUrl("");
-      [qk.subjects, qk.events, qk.sources].forEach((k) => qc.invalidateQueries({ queryKey: k }));
+      [qk.subjects, qk.events, qk.sources, qk.tasks].forEach((k) => qc.invalidateQueries({ queryKey: k }));
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
