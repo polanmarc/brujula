@@ -9,8 +9,15 @@ export const GMAIL_SCOPES = ["openid", "email", "https://www.googleapis.com/auth
 function oauthConfig() {
   const clientId = process.env["GOOGLE_CLIENT_ID"];
   const clientSecret = process.env["GOOGLE_CLIENT_SECRET"];
-  const appUrl = process.env["APP_URL"]?.replace(/\/+$/, "");
-  if (!clientId || !clientSecret || !appUrl) return null;
+  const rawAppUrl = process.env["APP_URL"]?.trim();
+  if (!clientId || !clientSecret || !rawAppUrl) return null;
+  // Only the origin matters: tolerate APP_URL set with a path (e.g. the full callback URL).
+  let appUrl: string;
+  try {
+    appUrl = new URL(rawAppUrl).origin;
+  } catch {
+    return null;
+  }
   return { clientId, clientSecret, redirectUri: `${appUrl}/api/google/callback`, appUrl };
 }
 
